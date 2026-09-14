@@ -14,7 +14,11 @@
 
 ![运营总览](docs/images/overview.png)
 
-**零依赖启动**：`npm ci && npm run dev` —— 不需要后端、数据库、API Key 或任何云服务。
+### 👉 [**点这里打开在线 Demo**](https://zcinta0514.github.io/aigc-ops-console/)
+
+打开即用，无需安装。三个页面都可以随便点，异常可以一路下钻到具体任务与设备事件。
+
+本地跑：`npm ci && npm run dev` —— 不需要后端、数据库、API Key 或任何云服务。
 
 ---
 
