@@ -1,0 +1,4 @@
+[
+{"id":"I0001","deviceId":"D06","offlineAt":"2026-08-25T15:10:00+08:00","restoredAt":"2026-08-25T15:40:00+08:00","reasonCode":"NETWORK_UNREACHABLE"},
+{"id":"I0002","deviceId":"D11","offlineAt":"2026-08-30T18:10:00+08:00","restoredAt":null,"reasonCode":"POWER_LOST"}
+]

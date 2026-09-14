@@ -1,0 +1,94 @@
+/**
+ * 设计令牌：深色玻璃 + 光影。
+ * 页面与组件中不得出现硬编码色值，一律经此处的变量取用。
+ */
+:root {
+  /* 底色与表面：近黑偏蓝，给玻璃留出可透出的层次 */
+  --bg-page: #070A12;
+  --bg-deep: #04060C;
+  --bg-card: rgba(255, 255, 255, 0.045);
+  --bg-card-hover: rgba(255, 255, 255, 0.072);
+  --bg-subtle: rgba(255, 255, 255, 0.03);
+  --bg-raised: rgba(255, 255, 255, 0.06);
+
+  /* 玻璃：统一模糊半径与内高光，避免各组件各写一套而失去整体感 */
+  --glass-blur: 18px;
+  --glass-border: rgba(255, 255, 255, 0.085);
+  --glass-border-strong: rgba(255, 255, 255, 0.16);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  /* 描边与分隔 */
+  --border-base: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.05);
+
+  /* 文字 */
+  --text-primary: #E9EDF6;
+  --text-second: #9AA6BF;
+  --text-weak: #606C86;
+
+  /* 语义色：在深色底上提高亮度，保证对比度 */
+  --color-primary: #4EA8FF;
+  --color-primary-soft: rgba(78, 168, 255, 0.14);
+  --color-success: #2FD6A3;
+  --color-warning: #F2B75C;
+  --color-critical: #FF6B7A;
+  --color-unknown: #6C7A96;
+  --color-neutral: #8C9AB5;
+  --color-violet: #9B8CFF;
+
+  /* 辉光：光影质感的来源，集中在少数几处使用，避免满屏发光 */
+  --glow-primary: 0 0 0 1px rgba(78, 168, 255, 0.25), 0 0 24px rgba(78, 168, 255, 0.18);
+  --glow-critical: 0 0 24px rgba(255, 107, 122, 0.2);
+  --glow-success: 0 0 24px rgba(47, 214, 163, 0.18);
+
+  /* 状态底色 */
+  --bg-blue: rgba(78, 168, 255, 0.12);
+  --bg-critical: rgba(255, 107, 122, 0.12);
+  --bg-warning: rgba(242, 183, 92, 0.12);
+  --bg-success: rgba(47, 214, 163, 0.12);
+  --border-critical: rgba(255, 107, 122, 0.3);
+  --border-warning: rgba(242, 183, 92, 0.3);
+
+  /* 侧栏 */
+  --bg-sidebar: rgba(10, 14, 24, 0.72);
+  --bg-nav: rgba(78, 168, 255, 0.12);
+  --text-sidebar: #8B97B0;
+  --text-sidebar-strong: #EAF0FA;
+
+  /* 字体阶梯 */
+  --fs-metric-xl: 30px; --fw-metric-xl: 600;
+  --fs-metric-md: 20px; --fw-metric-md: 600;
+  --fs-title: 15px; --fw-title: 600;
+  --fs-body: 14px; --fs-caption: 12px;
+
+  /* 间距与形状 */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px;
+  --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --radius-card: 14px; --radius-tag: 6px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.28);
+
+  /* 动效：统一时长与缓动，让全站节奏一致 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-base: 260ms;
+  --dur-slow: 520ms;
+
+  /* Element Plus 变量映射到本设计系统 */
+  --el-color-primary: var(--color-primary);
+  --el-bg-color: transparent;
+  --el-bg-color-overlay: #10141F;
+  --el-border-color: var(--border-base);
+  --el-border-color-light: var(--border-light);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-second);
+  --el-text-color-placeholder: var(--text-weak);
+  --el-fill-color-blank: transparent;
+  --el-font-size-base: 13px;
+  --el-border-radius-base: 8px;
+}
+
+/* 尊重系统的减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; }
+}

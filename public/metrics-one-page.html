@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AIGC 互动大屏运营看板 · 指标说明</title>
+<style>
+  @page { size: A4; margin: 11mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #fff; color: #1D2129;
+    font: 8.6pt/1.42 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .sheet { max-width: 188mm; margin: 0 auto; padding: 0; }
+  header { border-bottom: 2px solid #1D2129; padding-bottom: 1.8mm; margin-bottom: 2.4mm; }
+  h1 { font-size: 13pt; margin: 0 0 1mm; letter-spacing: -.3px; }
+  .sub { font-size: 7.4pt; color: #4E5969; }
+  .sub b { color: #1D2129; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 2.2mm; }
+  th, td { border: 1px solid #C9D0DC; padding: 1.05mm 1.5mm; vertical-align: top; text-align: left; }
+  th { background: #EEF3FF; font-size: 7.4pt; font-weight: 600; white-space: nowrap; }
+  td { font-size: 7.3pt; line-height: 1.4; }
+  td.metric { font-weight: 600; white-space: nowrap; }
+  td.caliber { font-family: ui-monospace, Consolas, monospace; font-size: 6.9pt; }
+  .tag { display: inline-block; font-size: 7.2pt; padding: .3mm 1.2mm; border: 1px solid #86909C; border-radius: 2px; color: #4E5969; margin-left: 1mm; vertical-align: 1px; }
+  .note { border: 1px solid #C9D0DC; background: #F7F8FA; padding: 1.6mm 2.2mm; font-size: 7pt; line-height: 1.45; }
+  .note h2 { font-size: 8pt; margin: 0 0 1mm; }
+  .note ul { margin: 0; padding-left: 4.5mm; }
+  .note li { margin-bottom: .8mm; }
+  footer { margin-top: 1.8mm; font-size: 6.6pt; color: #86909C; border-top: 1px solid #E5E8EF; padding-top: 1.2mm; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <h1>AIGC 互动大屏运营看板 · 指标说明</h1>
+    <div class="sub">
+      用于多台线下 AIGC 互动大屏的活动效果、生成稳定性与设备状态复盘。<b>全部为固定种子的模拟数据</b>，
+      观察截至 <b>2026-08-30 20:00（北京时间）</b>，参与日期范围 2026-08-01 至 2026-08-30。
+    </div>
+  </header>
+
+  <table>
+    <thead>
+      <tr><th style="width:15%">指标</th><th style="width:31%">定义与计算口径</th><th style="width:24%">为什么这样算</th><th style="width:30%">运营可采取的行动</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">参与人数</td>
+        <td class="caliber">所选范围内 participantId 去重数<br>（辅助：参与会话数 = 记录条数）</td>
+        <td>人数是去重口径，跨日、跨点位重复参与只算一人；<b>不能把各日或各点位人数相加</b>。</td>
+        <td>判断活动整体吸引力与点位冷热。人数高但转化低，说明"看得多、拿得少"，问题在结果侧而非引流侧。</td>
+      </tr>
+      <tr>
+        <td class="metric">生成成功率</td>
+        <td class="caliber">成功任务数 ÷ 已结束任务数<br>已结束 = 成功 + 失败 + 超时</td>
+        <td>排队中与生成中<b>不计入分母</b>，否则会低估成功率；卡片单独列出这两个数量以免隐藏未完结工作。重试成功仍是一条任务，不放大分母。</td>
+        <td>下钻失败任务的错误码分布。超时集中 → 查上游排队与超时配置；模型报错集中 → 查服务可用性。低于 85% 建议立即介入。</td>
+      </tr>
+      <tr>
+        <td class="metric">扫码领取率</td>
+        <td class="caliber">发生有效扫码的会话数<br>÷ 可领取会话数</td>
+        <td rowspan="2">两者<b>分母相同</b>（可领取会话 = 生成成功 + 审核通过 + 已展示），但<b>互不包含</b>：用户可能直接分享而不扫码。合并成一个"转化率"会让其中一个异常被另一个的高值拉平而不可见。</td>
+        <td>生成与耗时均正常但领取率低 → 问题在现场：核查二维码可扫性、摆放位置与引导文案；必要时做 A/B。</td>
+      </tr>
+      <tr>
+        <td class="metric">分享转化率</td>
+        <td class="caliber">发生有效分享的会话数<br>÷ 可领取会话数</td>
+        <td>扫码正常而分享低 → 卡点在传播：核查分享入口、分享文案与可分享形式，而非结果质量。</td>
+      </tr>
+      <tr>
+        <td class="metric">平均生成时长<br><span class="tag">含 P90</span></td>
+        <td class="caliber">成功任务 (完成 − 提交) 的算术平均<br>P90：同批样本升序后<br>rank = (n−1) × 0.9 线性插值</td>
+        <td><b>只看均值会漏掉长尾</b>：生成时长是长尾分布，少数超时任务被大量正常样本稀释。因此异常判定用 P90 而非均值——P90 对尾部敏感、对样本占比不敏感。</td>
+        <td>均值平稳而 P90 抬升，说明是尾部恶化而非整体变慢，应查重试与排队；两者同时上升才考虑模型或网络整体退化。</td>
+      </tr>
+      <tr>
+        <td class="metric">内容审核</td>
+        <td class="caliber">成功任务的 已通过 / 待审核 / 已拒绝<br>拒绝率 = 拒绝 ÷（通过 + 拒绝）</td>
+        <td>拒绝率<b>排除待审</b>，否则未决项会稀释真实拒绝比例。待审时长从生成完成算到快照。</td>
+        <td>待审积压超过 10 分钟即影响现场体验——内容已生成但用户拿不到。核查审核队列是否停滞；拒绝率异常升高时排查诱导性输入并更新词库。</td>
+      </tr>
+      <tr>
+        <td class="metric">设备在线状态</td>
+        <td class="caliber">心跳距快照 ≤120 秒为在线<br>&gt;120 秒为离线；无心跳为未知</td>
+        <td><b>快照口径，不随日期变化</b>。未知（从未上报）与离线（已确认失联）必须分开，不能把未激活设备报成故障。</td>
+        <td>离线设备按点位联系现场核查网络与供电；离线期间的互动数据不代表投放效果，不应纳入效果评估。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <h2>统一口径备注</h2>
+    <ul>
+      <li><b>归属口径</b>：按<b>会话开始时间的北京自然日</b>归属。任务完成、审核与扫码/分享即使发生在所选日期之外，只要其会话开始于范围内且事件不晚于快照，就仍归属该批会话。不另设"事件发生日"统计模式。</li>
+      <li><b>去重口径</b>：参与人数按模拟匿名 ID 在<b>整个所选范围</b>重新去重；真实系统能否跨点位识别同一人，不在本原型中假定成立。</li>
+      <li><b>汇总口径</b>：总人数重新去重，总比率、均值与分位数均从<b>合并原始样本</b>重算——不能平均各点位的百分比，也不能平均各点位的分位数（分位数不是线性统计量）。</li>
+      <li><b>零样本</b>：零分母的比率、无成功样本的均值与 P90 一律显示 <b>—</b> 并标注"暂无样本"，不显示 0；真实观察到的计数值 0 仍显示 0。</li>
+      <li><b>分位数算法</b>：采用 NumPy 默认的 linear 方法。Excel、SQL 与 Python 的默认分位数算法不同，跨工具核对前须先统一口径。</li>
+      <li><b>阈值性质</b>：本页一切阈值（95% / 20% / 20 秒 / 10 分钟 / 120 秒）均为<b>原型演示参数</b>，不是生产 SLA 或行业基准，上线前须按实际业务定标。</li>
+    </ul>
+  </div>
+
+  <footer>
+    光影实验室 · AIGC 互动大屏运营看板（模拟数据演示）｜异常由原始记录按规则推导，可下钻核对证据；规则输出不等于已确认根因。
+  </footer>
+</div>
+</body>
+</html>

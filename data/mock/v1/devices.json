@@ -1,0 +1,14 @@
+[
+{"id":"D01","siteId":"S01","name":"星河广场中庭·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D02","siteId":"S01","name":"星河广场中庭·2号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D03","siteId":"S02","name":"云汀购物中心·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D04","siteId":"S02","name":"云汀购物中心·2号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D05","siteId":"S03","name":"长街光影馆·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D06","siteId":"S03","name":"长街光影馆·2号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D07","siteId":"S04","name":"拾贝里街区·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D08","siteId":"S04","name":"拾贝里街区·2号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D09","siteId":"S05","name":"南岸艺术中心·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D10","siteId":"S05","name":"南岸艺术中心·2号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T19:59:30+08:00"},
+{"id":"D11","siteId":"S06","name":"曜石影城·1号屏","registeredAt":"2026-07-25T09:00:00+08:00","lastHeartbeatAt":"2026-08-30T18:09:30+08:00"},
+{"id":"D12","siteId":"S06","name":"曜石影城·2号屏","registeredAt":"2026-08-30T19:50:00+08:00","lastHeartbeatAt":null}
+]

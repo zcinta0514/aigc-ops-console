@@ -1,0 +1,48 @@
+{
+  "name": "aigc-ops-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "data:generate": "tsx scripts/generate-mock-data.ts",
+    "data:validate": "tsx scripts/validate-mock-data.ts",
+    "data:verify": "tsx scripts/verify-reproducibility.ts",
+    "lint": "eslint src scripts tests *.ts *.js --no-error-on-unmatched-pattern",
+    "typecheck": "vue-tsc --noEmit",
+    "test:unit": "vitest run",
+    "build": "vite build",
+    "build:single": "vite build --mode single && node scripts/copy-single.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test:e2e": "npm run build && playwright test",
+    "verify": "npm run data:validate && npm run data:verify && npm run lint && npm run typecheck && npm run test:unit && npm run build"
+  },
+  "dependencies": {
+    "dayjs": "1.11.23",
+    "echarts": "6.1.0",
+    "element-plus": "2.14.5",
+    "vue": "3.5.42",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "24.13.4",
+    "@vitejs/plugin-vue": "6.0.8",
+    "eslint": "10.10.0",
+    "eslint-plugin-vue": "10.11.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0",
+    "vite": "8.3.0",
+    "vite-plugin-singlefile": "2.3.3",
+    "vitest": "5.0.0",
+    "vue-tsc": "3.3.11",
+    "zod": "4.6.4"
+  }
+}

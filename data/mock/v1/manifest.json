@@ -1,0 +1,49 @@
+{
+  "datasetVersion": "v1",
+  "seed": "aigc-ops-demo-v1",
+  "schemaVersion": "1.0.0",
+  "rulesVersion": "2.0.0",
+  "asOf": "2026-08-30T20:00:00+08:00",
+  "files": [
+    {
+      "name": "meta.json",
+      "records": 1,
+      "sha256": "f7029f5061d11a9ef738c7a33f16723b5767b5db1a67f3f6be4830de3ac0b52b"
+    },
+    {
+      "name": "sites.json",
+      "records": 6,
+      "sha256": "9cc5aa0e592c309c3ce7d1a2dddcaadce1d93fb50f472ce94fcff2f78fe1ec81"
+    },
+    {
+      "name": "devices.json",
+      "records": 12,
+      "sha256": "a64b5b6b1bbc1acd4b4b8d438ecb6e153953915c14721f7d60b8cc7822e68968"
+    },
+    {
+      "name": "sessions.json",
+      "records": 6000,
+      "sha256": "220f0fd9a162006dbe12539185c9b0d88d678b37cb43ee24ced274134428bb53"
+    },
+    {
+      "name": "generation-tasks.json",
+      "records": 5904,
+      "sha256": "8f5b0a17498024e76595aedea0cc901fd1716bd1b153a1a38e15cdc8fafe4943"
+    },
+    {
+      "name": "scan-events.json",
+      "records": 2475,
+      "sha256": "f3689e94b4b7fd4851a145d22ecf249dc43c3e1618dd7095b43a5b3504119f0d"
+    },
+    {
+      "name": "share-events.json",
+      "records": 1414,
+      "sha256": "434137300c9fd4d327047e04d988bb0bc4cac1385734df1f76b6683ae64f3701"
+    },
+    {
+      "name": "device-incidents.json",
+      "records": 2,
+      "sha256": "ac6b468f7e5305e539406cc28c7d6e375905477e2c73d74db5b31bf2be1bebc3"
+    }
+  ]
+}

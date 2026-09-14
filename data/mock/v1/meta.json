@@ -1,0 +1,12 @@
+{
+  "datasetVersion": "v1",
+  "seed": "aigc-ops-demo-v1",
+  "activityId": "ACT01",
+  "activityName": "光影共创体验",
+  "timezone": "Asia/Shanghai",
+  "dateStart": "2026-08-01",
+  "dateEnd": "2026-08-30",
+  "asOf": "2026-08-30T20:00:00+08:00",
+  "schemaVersion": "1.0.0",
+  "rulesVersion": "2.0.0"
+}

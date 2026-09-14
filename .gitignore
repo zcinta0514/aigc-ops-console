@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-single/
+deliverables/
+test-results/
+playwright-report/
+docs/work/repro-*/
+docs/work/clean-install/
+.cache/
+.env*
+*.local
