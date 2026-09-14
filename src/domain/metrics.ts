@@ -187,8 +187,13 @@ export function computeDailySeries(dataset: Dataset, filters: Filters): DailyPoi
  * 当日逐小时序列。用于实时视图：小时是运营在当日唯一有行动意义的粒度，
  * 按天看不出"下午三点开始变慢"这类现场问题。
  */
-export function computeHourlySeries(dataset: Dataset, date: string, siteIds: readonly string[]): HourlyPoint[] {
-  const cohort = selectCohort(dataset, { start: date, end: date, siteIds: [...siteIds] })
+export function computeHourlySeries(
+  dataset: Dataset,
+  date: string,
+  siteIds: readonly string[],
+  asOf?: string,
+): HourlyPoint[] {
+  const cohort = selectCohort(dataset, { start: date, end: date, siteIds: [...siteIds], asOf })
   const asOfMs = Date.parse(cohort.asOf)
   const siteFilter = siteIds.length === 0 ? null : new Set(siteIds)
   const hourOf = (ms: number) => new Date(ms + 8 * 3600 * 1000).getUTCHours()

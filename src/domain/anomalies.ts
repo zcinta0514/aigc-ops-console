@@ -25,8 +25,8 @@ type Bucket = {
   taskIds: string[]
 }
 
-function buildBuckets(dataset: Dataset): Map<string, Bucket> {
-  const asOfMs = Date.parse(dataset.meta.asOf)
+function buildBuckets(dataset: Dataset, asOf: string): Map<string, Bucket> {
+  const asOfMs = Date.parse(asOf)
   const taskById = new Map(dataset.tasks.map(t => [t.id, t]))
   const buckets = new Map<string, Bucket>()
 
@@ -94,16 +94,18 @@ function makeAnomaly(a: Omit<Anomaly, 'id'> & { id: string }): Anomaly {
   return a
 }
 
-export function deriveAnomalies(dataset: Dataset): Anomaly[] {
+export function deriveAnomalies(dataset: Dataset, asOfOverride?: string): Anomaly[] {
   const T = THRESHOLDS
+  const asOf = asOfOverride ?? dataset.meta.asOf
+  const asOfMs = Date.parse(asOf)
   const out: Anomaly[] = []
   const siteName = new Map(dataset.sites.map(s => [s.id, s.name]))
-  const buckets = buildBuckets(dataset)
+  const buckets = buildBuckets(dataset, asOf)
 
   for (const key of [...buckets.keys()].sort()) {
     const b = buckets.get(key)!
     const site = siteName.get(b.siteId) ?? b.siteId
-    const base = { siteId: b.siteId, bucketDate: b.date, observedAt: dataset.meta.asOf, taskIds: b.taskIds, sessionIds: b.sessions }
+    const base = { siteId: b.siteId, bucketDate: b.date, observedAt: asOf, taskIds: b.taskIds, sessionIds: b.sessions }
     const label = `${site} ${b.date}`
 
     // 生成成功率低
@@ -185,7 +187,7 @@ export function deriveAnomalies(dataset: Dataset): Anomaly[] {
 
     // 审核积压
     if (b.pendingOverdue.length >= T.moderationBacklog.minSample) {
-      const waits = b.pendingOverdue.map(t => (Date.parse(dataset.meta.asOf) - Date.parse(t.finishedAt!)) / 60_000)
+      const waits = b.pendingOverdue.map(t => (asOfMs - Date.parse(t.finishedAt!)) / 60_000)
       const maxWait = Math.max(...waits)
       out.push(makeAnomaly({
         ...base,
@@ -208,7 +210,7 @@ export function deriveAnomalies(dataset: Dataset): Anomaly[] {
     const device = dataset.devices.find(d => d.id === inc.deviceId)
     if (!device) continue
     const start = Date.parse(inc.offlineAt)
-    const end = inc.restoredAt === null ? Date.parse(dataset.meta.asOf) : Date.parse(inc.restoredAt)
+    const end = inc.restoredAt === null ? asOfMs : Date.parse(inc.restoredAt)
     const minutes = (end - start) / 60_000
     out.push(makeAnomaly({
       id: `offline|${inc.deviceId}|${inc.offlineAt}`,
@@ -217,7 +219,7 @@ export function deriveAnomalies(dataset: Dataset): Anomaly[] {
       severity: minutes >= THRESHOLDS.deviceOffline.criticalMinutes ? 'critical' : 'warning',
       siteId: device.siteId, deviceId: inc.deviceId,
       offlineAt: inc.offlineAt, restoredAt: inc.restoredAt,
-      observedAt: dataset.meta.asOf,
+      observedAt: asOf,
       rule: `存在有效离线事件；持续 ≥ ${THRESHOLDS.deviceOffline.criticalMinutes} 分钟记为严重`,
       actual: Math.round(minutes), threshold: THRESHOLDS.deviceOffline.criticalMinutes,
       numerator: Math.round(minutes), denominator: 0, sampleSize: 0,
@@ -230,7 +232,7 @@ export function deriveAnomalies(dataset: Dataset): Anomaly[] {
 
   // 设备未知：从未上报心跳，属状态未知，不得冒充已确认故障
   for (const d of [...dataset.devices].sort((a, b) => (a.id < b.id ? -1 : 1))) {
-    if (deviceStatusOf(d.lastHeartbeatAt, dataset.meta.asOf) !== 'unknown') continue
+    if (deviceStatusOf(d.lastHeartbeatAt, asOf) !== 'unknown') continue
     if (d.lastHeartbeatAt === null && dataset.incidents.some(i => i.deviceId === d.id)) continue
     out.push(makeAnomaly({
       id: `unknown|${d.id}`,
@@ -238,7 +240,7 @@ export function deriveAnomalies(dataset: Dataset): Anomaly[] {
       title: `${d.name} 未上报心跳`,
       severity: 'info',
       siteId: d.siteId, deviceId: d.id,
-      observedAt: dataset.meta.asOf,
+      observedAt: asOf,
       rule: '截至快照没有任何心跳记录，状态未知',
       actual: 0, threshold: 0, numerator: 0, denominator: 0, sampleSize: 0,
       taskIds: [], sessionIds: [],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
 import { useDataset } from '../composables/useDataset'
@@ -9,6 +9,7 @@ import { computeHourlySeries, computeOverview } from '../domain/metrics'
 import { getDeviceSnapshot } from '../domain/device-status'
 import { deriveAnomalies, selectVisibleAnomalies } from '../domain/anomalies'
 import { DEMO } from '../config/demo'
+import { THRESHOLDS } from '../config/thresholds'
 import { areaGradient, glowLine, palette } from '../styles/echarts-theme'
 import { timestamp } from '../config/format'
 import ChartContainer from '../components/ChartContainer.vue'
@@ -16,6 +17,7 @@ import ChartCanvas from '../components/ChartCanvas.vue'
 import GlobalFilters from '../components/GlobalFilters.vue'
 import OverviewMetrics from '../features/overview/OverviewMetrics.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import TimeScrubber from '../features/live/TimeScrubber.vue'
 
 const router = useRouter()
 const { dataset, loading, error, reload } = useDataset()
@@ -23,27 +25,89 @@ const { filters, invalid, setRange, setSites, reset } = useDashboardFilters(
   () => dataset.value?.sites.map(s => s.id) ?? [],
 )
 
-/** 当日 = 数据集最后一天，也就是快照所在的那一天。 */
+/** 当日 = 数据集最后一天，也是快照所在的那一天。 */
 const today = DEMO.end
-const asOf = computed(() => dataset.value?.meta.asOf ?? DEMO.asOf)
+const SNAPSHOT_ASOF = DEMO.asOf
+const OPEN_MIN = 10 * 60
+const CLOSE_MIN = 20 * 60
+
+// ---------------------------------------------------------------- 时间回放
+
+/**
+ * 回放位置（当天第几分钟）。默认停在快照时刻，也就是真实交付状态。
+ * 往回拖时，所有指标按那一刻重算：尚未开始的会话不出现，
+ * 尚未完成的任务显示为生成中，尚未发生的审核与展示一律不可见。
+ */
+const replayMinute = ref(CLOSE_MIN)
+const playing = ref(false)
+const STEP_MINUTES = 2
+const TICK_MS = 55
+let timer: number | undefined
+
+function stop() {
+  if (timer !== undefined) { window.clearInterval(timer); timer = undefined }
+  playing.value = false
+}
+
+function togglePlay() {
+  if (playing.value) { stop(); return }
+  // 已经在末尾时再按播放，从头开始
+  if (replayMinute.value >= CLOSE_MIN) replayMinute.value = OPEN_MIN
+  playing.value = true
+  timer = window.setInterval(() => {
+    const next = replayMinute.value + STEP_MINUTES
+    if (next >= CLOSE_MIN) { replayMinute.value = CLOSE_MIN; stop() }
+    else replayMinute.value = next
+  }, TICK_MS)
+}
+
+function toSnapshot() {
+  stop()
+  replayMinute.value = CLOSE_MIN
+}
+
+onBeforeUnmount(stop)
+
+const replayLabel = computed(() => {
+  const m = replayMinute.value
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+})
+
+const isReplaying = computed(() => replayMinute.value < CLOSE_MIN)
+
+/** 回放时刻的观察截止。未回放时就等于数据集快照时间。 */
+const asOf = computed(() => {
+  if (!isReplaying.value) return SNAPSHOT_ASOF
+  return `${today}T${replayLabel.value}:00+08:00`
+})
+
+/** 营业时段内已产生数据的分钟区间，供轨道标注。 */
+const activeFrom = OPEN_MIN
+const activeTo = CLOSE_MIN
+
+// ---------------------------------------------------------------- 计算
 
 const index = computed(() => (dataset.value ? buildIndex(dataset.value) : undefined))
 
 const todayCohort = computed(() =>
   dataset.value && index.value
-    ? selectCohort(dataset.value, { start: today, end: today, siteIds: filters.value.siteIds }, index.value)
+    ? selectCohort(dataset.value, { start: today, end: today, siteIds: filters.value.siteIds, asOf: asOf.value }, index.value)
     : undefined)
 
 const metrics = computed(() => (todayCohort.value ? computeOverview(todayCohort.value) : undefined))
+
+/** 设备状态始终是快照口径，不参与回放——数据里只有最后一次心跳，没有心跳历史。 */
 const devices = computed(() =>
-  dataset.value ? getDeviceSnapshot(dataset.value, filters.value.siteIds, asOf.value) : undefined)
+  dataset.value ? getDeviceSnapshot(dataset.value, filters.value.siteIds, SNAPSHOT_ASOF) : undefined)
+
 const hourly = computed(() =>
-  dataset.value ? computeHourlySeries(dataset.value, today, filters.value.siteIds) : [])
+  dataset.value ? computeHourlySeries(dataset.value, today, filters.value.siteIds, asOf.value) : [])
 
 const anomalies = computed(() =>
-  dataset.value ? selectVisibleAnomalies(deriveAnomalies(dataset.value), { ...filters.value, start: today, end: today }) : [])
+  dataset.value
+    ? selectVisibleAnomalies(deriveAnomalies(dataset.value, asOf.value), { ...filters.value, start: today, end: today })
+    : [])
 
-/** 队列：尚未结束的任务按提交时间倒序，这是当日唯一"正在发生"的东西。 */
 const queue = computed(() => {
   const list = (todayCohort.value?.tasks ?? []).filter(t => t.status === 'queued' || t.status === 'running')
   return [...list].sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1))
@@ -56,6 +120,18 @@ const pendingQueue = computed(() => {
     .map(t => ({ ...t, waitMinutes: t.finishedAt ? Math.round((asOfMs - Date.parse(t.finishedAt)) / 60_000) : 0 }))
     .sort((a, b) => b.waitMinutes - a.waitMinutes)
     .slice(0, 12)
+})
+
+/**
+ * 回放处在某个小时中间时，该小时只统计了一部分。
+ * 若不标出来，折线上最后一段的「下跌」会被误读成参与人数骤降——
+ * 而它只是这个小时还没走完。本看板存在的意义就是避免这类假异常。
+ */
+const partialHourLabel = computed(() => {
+  if (!isReplaying.value) return null
+  if (replayMinute.value % 60 === 0) return null
+  const h = Math.floor(replayMinute.value / 60)
+  return hourly.value.find(p => p.hour === `${String(h).padStart(2, '0')}:00`)?.label ?? null
 })
 
 const hourlyOption = computed<EChartsCoreOption>(() => ({
@@ -73,6 +149,15 @@ const hourlyOption = computed<EChartsCoreOption>(() => ({
       data: hourly.value.map(h => (h.participants > 0 ? h.participants : null)),
       connectNulls: false, lineStyle: glowLine(palette.primary),
       areaStyle: { color: areaGradient('rgba(78,168,255,0.22)') }, itemStyle: { color: palette.primary },
+      markArea: partialHourLabel.value ? {
+        silent: true,
+        itemStyle: { color: 'rgba(78, 168, 255, 0.07)' },
+        label: {
+          show: true, position: 'insideTop' as const,
+          formatter: '进行中', color: palette.weak, fontSize: 10,
+        },
+        data: [[{ xAxis: partialHourLabel.value }, { xAxis: partialHourLabel.value }]],
+      } : undefined,
     },
     {
       name: '生成成功率', type: 'line', smooth: 0.35, yAxisIndex: 1,
@@ -88,8 +173,7 @@ const hourlyOption = computed<EChartsCoreOption>(() => ({
 }))
 
 const hourlyEmpty = computed(() => hourly.value.every(h => h.sessions === 0))
-const snapshotLabel = computed(() => asOf.value.slice(0, 16).replace('T', ' '))
-
+const snapshotLabel = computed(() => SNAPSHOT_ASOF.slice(0, 16).replace('T', ' '))
 const siteNames = computed(() => new Map((dataset.value?.sites ?? []).map(s => [s.id, s.name])))
 
 function openTab(tab: string, status?: string) {
@@ -98,6 +182,11 @@ function openTab(tab: string, status?: string) {
   if (status) query.moderationStatus = status
   void router.push({ path: '/details', query })
 }
+
+// 手动拖动时停止自动播放，避免两股力量互相打架
+watch(replayMinute, (v, old) => {
+  if (playing.value && v < old) stop()
+})
 </script>
 
 <template>
@@ -105,20 +194,29 @@ function openTab(tab: string, status?: string) {
     <div>
       <h1>实时监控</h1>
       <p class="muted">
-        观测日 {{ today }} 当天，截至快照 {{ snapshotLabel }}（北京时间）。点位筛选已应用。
+        观测日 {{ today }} · 快照 {{ snapshotLabel }}（北京时间）· 点位筛选已应用
       </p>
     </div>
+    <p class="hint-inline">
+      拖动下方时间轴可回放当天，观察指标如何一步步演变。
+    </p>
   </section>
 
-  <!-- 语义说明不可省略：这是固定快照，不是接入实时流 -->
-  <section class="snapshot-note enter" style="--stagger: 1" role="note">
-    <span class="pulse" aria-hidden="true"></span>
+  <section class="enter" style="--stagger: 1">
+    <TimeScrubber
+      v-model="replayMinute" :min="OPEN_MIN" :max="CLOSE_MIN"
+      :playing="playing" :active-from="activeFrom" :active-to="activeTo"
+      @toggle="togglePlay" @reset="toSnapshot"
+    />
+  </section>
+
+  <section v-if="isReplaying" class="replay-note fade-in" role="note">
+    <span class="mark" aria-hidden="true">◷</span>
     <div>
-      <strong>快照视图，非实时数据流</strong>
+      <strong>正在回放 {{ replayLabel }}，不是当前快照</strong>
       <p>
-        本页展示的是模拟数据集固定观察截止时刻（{{ snapshotLabel }}）的当日截面，
-        不是持续接入的实时指标。数据集最后一天 10:00 开始营业、20:00 截止，因此当天是未完结日，
-        累计值不应与完整营业日直接比较。
+        该时刻之后才开始的会话、才完成的任务、才出结果的审核一律不可见——
+        你看到的是"当时能看到的全部信息"。设备状态不参与回放，始终显示快照口径。
       </p>
     </div>
   </section>
@@ -140,22 +238,24 @@ function openTab(tab: string, status?: string) {
   <template v-else-if="metrics && devices">
     <OverviewMetrics
       class="enter" style="--stagger: 3"
-      :metrics="metrics" :devices="devices" :as-of="asOf" @open="openTab"
+      :metrics="metrics" :devices="devices" :as-of="SNAPSHOT_ASOF" :replay-label="isReplaying ? replayLabel : undefined"
+      @open="openTab"
     />
 
     <div class="grid-live enter" style="--stagger: 4">
       <ChartContainer
-        class="span-2" title="当日逐小时" subtitle="小时是当日在现场唯一有行动意义的粒度"
+        class="span-2" title="当日逐小时"
+        :subtitle="isReplaying ? `截至 ${replayLabel}；最后一段为进行中的小时，低于前几段属正常` : '完整营业时段'"
         :empty="hourlyEmpty"
-        hint="左轴为人数与秒数，右轴为百分比；成功率与 P90 时长分别使用各自纵轴，避免不同量纲硬塞。空小时绘制为缺口。"
+        hint="左轴为人数与秒数，右轴为百分比，两个量纲各用各的轴。回放时尚未到来的小时绘制为缺口，而不是 0。"
       >
         <ChartCanvas :option="hourlyOption" :height="230" />
       </ChartContainer>
 
       <ChartContainer
-        title="生成队列" :subtitle="`截至快照仍未结束 · ${queue.length} 条`"
+        title="生成队列" :subtitle="`截至${isReplaying ? ' ' + replayLabel : '快照'}仍未结束 · ${queue.length} 条`"
         :empty="queue.length === 0"
-        hint="排队中与生成中的任务。它们不计入生成成功率的分母，因此成功率卡片会单独列出这两个数量。"
+        hint="排队中与生成中的任务。它们不计入生成成功率的分母，因此成功率卡片会单独列出这两个数量。回放时，比当前时刻更晚完成的任务会回到「生成中」。"
       >
         <ul class="queue">
           <li v-for="t in queue" :key="t.id">
@@ -172,7 +272,7 @@ function openTab(tab: string, status?: string) {
       <ChartContainer
         title="待审核队列" :subtitle="`按等待时长倒序 · 共 ${metrics.pending} 条`"
         :empty="pendingQueue.length === 0"
-        hint="等待时长从生成完成时间算至快照。内容已生成但未过审，用户当场拿不到结果，这是最直接影响现场体验的一类积压。"
+        hint="等待时长从生成完成时间算至当前观察时刻。内容已生成但未过审，用户当场拿不到结果，这是最直接影响现场体验的一类积压。"
       >
         <template #action>
           <button type="button" class="link" @click="openTab('moderation', 'pending')">全部待审 →</button>
@@ -181,15 +281,15 @@ function openTab(tab: string, status?: string) {
           <li v-for="t in pendingQueue" :key="t.id">
             <span class="qid">{{ t.id }}</span>
             <span class="qsite">{{ siteNames.get(todayCohort?.index.sessions.get(t.sessionId)?.siteId ?? '') ?? '—' }}</span>
-            <span class="wait" :class="{ over: t.waitMinutes > 10 }">{{ t.waitMinutes }} 分钟</span>
+            <span class="wait" :class="{ over: t.waitMinutes > THRESHOLDS.moderationBacklog.waitMinutes }">{{ t.waitMinutes }} 分钟</span>
           </li>
         </ul>
       </ChartContainer>
 
       <ChartContainer
-        title="设备网格" :subtitle="`快照 ${snapshotLabel}`"
+        title="设备网格" :subtitle="`快照 ${snapshotLabel} · 不参与回放`"
         :empty="devices.devices.length === 0"
-        hint="在线、离线、未知三态。未知指从未上报心跳，不冒充已确认离线。设备状态只随点位筛选变化。"
+        hint="在线、离线、未知三态。未知指从未上报心跳，不冒充已确认离线。数据中只有每台设备的最后一次心跳，没有心跳历史，因此该面板固定为快照口径。"
       >
         <div class="device-grid">
           <button
@@ -199,16 +299,14 @@ function openTab(tab: string, status?: string) {
           >
             <span class="dot" aria-hidden="true" />
             <span class="dname">{{ d.id }}</span>
-            <span class="dlabel">
-              {{ d.status === 'online' ? '在线' : d.status === 'offline' ? '离线' : '未上报' }}
-            </span>
+            <span class="dlabel">{{ d.status === 'online' ? '在线' : d.status === 'offline' ? '离线' : '未上报' }}</span>
           </button>
         </div>
       </ChartContainer>
 
       <ChartContainer
         title="当日异常" :subtitle="`${anomalies.length} 条`" :empty="anomalies.length === 0"
-        hint="仅展示归属当日（业务日期为今天）的异常。设备未知属快照信息，不受日期限制。"
+        hint="仅展示归属当日的异常。回放时按当前时刻重算：那时还不足以判定为异常的，不会提前出现。"
       >
         <template #action>
           <button type="button" class="link" @click="openTab('anomalies')">全部异常 →</button>
@@ -225,31 +323,23 @@ function openTab(tab: string, status?: string) {
 </template>
 
 <style scoped>
-.page-head { margin-bottom: var(--space-3); }
+.page-head { margin-bottom: var(--space-3); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; }
 .page-head p { margin-top: 6px; }
-.filter-panel { padding: 12px 18px; margin: var(--space-3) 0 var(--space-4); }
+.hint-inline { font-size: 11px; color: var(--text-weak); align-self: center; }
+.filter-panel { padding: 12px 18px; margin: var(--space-4) 0; }
 
-.snapshot-note {
+.replay-note {
   display: flex; gap: 13px; align-items: flex-start;
-  padding: 13px 18px; border-radius: var(--radius-card);
-  background: linear-gradient(90deg, rgba(78, 168, 255, 0.1), rgba(78, 168, 255, 0.02));
-  border: 1px solid rgba(78, 168, 255, 0.22);
+  margin-top: var(--space-3); padding: 12px 18px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(90deg, rgba(78, 168, 255, 0.13), rgba(78, 168, 255, 0.02));
+  border: 1px solid rgba(78, 168, 255, 0.28);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
-.snapshot-note strong { font-size: 12.5px; color: var(--text-primary); display: block; margin-bottom: 4px; }
-.snapshot-note p { font-size: 11px; line-height: 1.7; color: var(--text-second); }
-.pulse {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary);
-  margin-top: 5px; flex-shrink: 0;
-  box-shadow: 0 0 0 0 rgba(78, 168, 255, 0.6);
-  animation: pulse 2.4s var(--ease-soft) infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(78, 168, 255, 0.55); }
-  70% { box-shadow: 0 0 0 9px rgba(78, 168, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(78, 168, 255, 0); }
-}
+.replay-note strong { font-size: 12.5px; color: var(--text-primary); display: block; margin-bottom: 4px; }
+.replay-note p { font-size: 11px; line-height: 1.7; color: var(--text-second); }
+.replay-note .mark { color: var(--color-primary); font-size: 14px; margin-top: 2px; }
 
 .grid-live { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-4); }
 .span-2 { grid-column: span 2; }
@@ -292,7 +382,5 @@ function openTab(tab: string, status?: string) {
 .link:hover { text-decoration: underline; }
 .data-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px; }
 
-@media (max-width: 1366px) {
-  .device-grid { grid-template-columns: repeat(3, 1fr); }
-}
+@media (max-width: 1366px) { .device-grid { grid-template-columns: repeat(3, 1fr); } }
 </style>

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # 数据校验 → 复现校验 → lint → 类型检查 → 72 条单测 → 生产构建
+      # 任一步失败即中断，与本地 npm run verify 完全一致
+      - name: 完整校验
+        run: npm run verify
+
+      # 单文件构建是主要交付形态，单独验证它能产出且体积在预期内
+      - name: 单文件构建
+        run: npm run build:single
+
+      - name: 安装测试浏览器
+        run: npx playwright install --with-deps chromium
+
+      - name: 端到端测试
+        run: npm run test:e2e
+
+      - name: 产物体积
+        run: |
+          echo "单文件 HTML：$(du -h dist-single/index.html | cut -f1)"
+          echo "静态站点：$(du -sh dist | cut -f1)"
+          echo "模拟数据：$(du -sh data/mock | cut -f1)"
+
+      - name: 上传失败时的测试报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

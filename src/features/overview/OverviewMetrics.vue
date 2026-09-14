@@ -8,6 +8,8 @@ const props = defineProps<{
   metrics: OverviewMetrics
   devices: DeviceSnapshot
   asOf: string
+  /** 时间回放位置，形如 14:30。仅用于在卡片上标明当前不是快照状态。 */
+  replayLabel?: string
 }>()
 const emit = defineEmits<{ open: [tab: string, status?: string] }>()
 
@@ -25,8 +27,8 @@ const longTail = computed(() => {
     <MetricCard
       title="参与人数" :value="integer(metrics.participants)" unit="人"
       icon="i" accent
-      :hint="'按模拟匿名 participantId 在所选范围内重新去重，等于各点位人数或各日人数相加。'"
-      :subtitle="`${integer(metrics.sessions)} 次参与会话`"
+      :hint="'按模拟匿名 participantId 在所选范围内重新去重，不等于各点位人数或各日人数相加。'"
+      :subtitle="replayLabel ? `截至 ${replayLabel} · ${integer(metrics.sessions)} 次参与会话` : `${integer(metrics.sessions)} 次参与会话`"
     />
 
     <MetricCard
@@ -101,7 +103,7 @@ const longTail = computed(() => {
       :empty="devices.online + devices.offline + devices.unknown === 0"
     >
       <template #default>
-        <span>快照 {{ snapshotLabel }}</span>
+        <span>快照 {{ snapshotLabel }}<template v-if="replayLabel"> · 不参与回放</template></span>
       </template>
     </MetricCard>
   </div>

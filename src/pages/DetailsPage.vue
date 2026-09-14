@@ -118,10 +118,15 @@ const sharesForTask = computed(() => {
   return t ? (cohort.value?.shares ?? []).filter(s => s.taskId === t.id) : []
 })
 
+/**
+ * 设备抽屉只由 openDeviceId 驱动。
+ * 不能回退到「当前异常关联的设备」——否则点开一条设备类异常时，
+ * 异常抽屉与设备抽屉会同时弹出，用户看到两个遮罩叠在一起。
+ * 异常里的设备要主动点「相关设备」才打开。
+ */
 const deviceForDrawer = computed(() => {
-  if (!dataset.value) return null
-  const id = openDeviceId.value ?? openAnomaly.value?.deviceId
-  return id ? dataset.value.devices.find(d => d.id === id) ?? null : null
+  if (!dataset.value || !openDeviceId.value) return null
+  return dataset.value.devices.find(d => d.id === openDeviceId.value) ?? null
 })
 const deviceStatusForDrawer = computed(() => {
   const d = deviceForDrawer.value

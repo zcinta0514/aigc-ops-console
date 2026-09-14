@@ -5,8 +5,20 @@ import type { DailyPoint } from '../../domain/types'
 import ChartContainer from '../../components/ChartContainer.vue'
 import ChartCanvas from '../../components/ChartCanvas.vue'
 import { areaGradient, glowLine, palette } from '../../styles/echarts-theme'
+import type { ChartClickPayload } from '../../composables/useEChart'
 
 const props = defineProps<{ series: DailyPoint[]; loading?: boolean }>()
+const emit = defineEmits<{ pick: [date: string] }>()
+
+const canvas = ref<{ exportPng: (name?: string) => void }>()
+
+/** 点某一天即把全页筛选到该日——从"看到异常"到"看清异常"不该再手动改日期。 */
+function onPick(payload: ChartClickPayload) {
+  const index = payload.dataIndex
+  if (index === undefined) return
+  const point = props.series[index]
+  if (point) emit('pick', point.date)
+}
 
 type MetricKey = 'participants' | 'successRate' | 'averageSeconds'
 const metric = ref<MetricKey>('participants')
@@ -112,14 +124,18 @@ const hint = computed(() => metric.value === 'averageSeconds'
     :subtitle="metric === 'averageSeconds' ? '均值与 P90 同轴对比，间距即长尾' : undefined"
   >
     <template #action>
+      <div class="actions">
       <div class="seg">
         <button
           v-for="t in tabs" :key="t.key" type="button"
           :class="{ active: metric === t.key }" @click="metric = t.key"
         >{{ t.label }}</button>
       </div>
+        <button type="button" class="ghost" title="导出当前图表为 PNG"
+                @click="canvas?.exportPng('趋势图.png')">导出</button>
+      </div>
     </template>
-    <ChartCanvas :option="option" :height="236" />
+    <ChartCanvas ref="canvas" :option="option" :height="236" @pick="onPick" />
   </ChartContainer>
 </template>
 
@@ -132,4 +148,11 @@ const hint = computed(() => metric.value === 'averageSeconds'
 }
 .seg button:hover { color: var(--text-second); }
 .seg button.active { color: var(--color-primary); background: var(--bg-blue); }
+.actions { display: inline-flex; align-items: center; gap: 8px; }
+.ghost {
+  border: 1px solid var(--border-light); background: var(--bg-subtle); color: var(--text-weak);
+  font-size: 11px; padding: 5px 10px; border-radius: 8px;
+  transition: all var(--dur-fast) var(--ease-soft);
+}
+.ghost:hover { color: var(--text-primary); border-color: var(--glass-border-strong); }
 </style>

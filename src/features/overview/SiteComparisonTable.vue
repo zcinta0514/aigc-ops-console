@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { SiteMetrics } from '../../domain/types'
 import ChartContainer from '../../components/ChartContainer.vue'
 import { decimal, integer, percent } from '../../config/format'
+import { exportCsv } from '../../composables/useExport'
 
 const props = defineProps<{ rows: readonly SiteMetrics[]; loading?: boolean }>()
 const emit = defineEmits<{ pick: [siteId: string] }>()
@@ -44,6 +45,21 @@ function toggle(key: SortKey) {
   else { sortKey.value = key; desc.value = true }
 }
 
+function exportRows() {
+  exportCsv(
+    '点位对比.csv',
+    ['点位ID', '点位', '参与人数', '会话数', '生成成功率', '扫码领取率', '分享转化率', '平均时长(秒)', 'P90时长(秒)', '异常数'],
+    sorted.value.map(r => [
+      r.siteId, r.siteName, r.participants, r.sessions,
+      // 导出原始比例而非格式化字符串，便于在表格软件里继续计算
+      r.successRate, r.scanRate, r.shareRate,
+      r.averageSeconds === null ? null : +r.averageSeconds.toFixed(1),
+      r.p90Seconds === null ? null : +r.p90Seconds.toFixed(1),
+      r.anomalies,
+    ]),
+  )
+}
+
 const columns: Array<{ key: SortKey; label: string }> = [
   { key: 'participants', label: '参与人数' },
   { key: 'sessions', label: '会话数' },
@@ -61,6 +77,10 @@ const columns: Array<{ key: SortKey; label: string }> = [
     :hint="'各点位的比率与均值均由其自身原始样本重算，不是对全局值做拆分。参与人数不可跨点位相加——同一模拟匿名 ID 可能在多个点位出现。'"
     :empty="rows.length === 0" :loading="loading"
   >
+    <template #action>
+      <button type="button" class="ghost" title="导出当前排序下的点位对比为 CSV"
+              @click="exportRows">导出 CSV</button>
+    </template>
     <div class="table-wrap">
       <table class="site-table">
         <thead>
@@ -109,6 +129,12 @@ const columns: Array<{ key: SortKey; label: string }> = [
 </template>
 
 <style scoped>
+.ghost {
+  border: 1px solid var(--border-light); background: var(--bg-subtle); color: var(--text-weak);
+  font-size: 11px; padding: 5px 10px; border-radius: 8px;
+  transition: all var(--dur-fast) var(--ease-soft);
+}
+.ghost:hover { color: var(--text-primary); border-color: var(--glass-border-strong); }
 .table-wrap { overflow-x: auto; margin: 0 -4px; }
 .site-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .site-table th {

@@ -9,7 +9,18 @@ export interface ScanEvent { id: string; taskId: string; scannedAt: string }
 export interface ShareEvent { id: string; taskId: string; sharedAt: string; channel: 'wechat' | 'moments' | 'copy_link' | 'other' }
 export interface DeviceIncident { id: string; deviceId: string; offlineAt: string; restoredAt: string | null; reasonCode: string }
 export interface Dataset { meta: Meta; sites: Site[]; devices: Device[]; sessions: Session[]; tasks: GenerationTask[]; scans: ScanEvent[]; shares: ShareEvent[]; incidents: DeviceIncident[] }
-export interface Filters { start: string; end: string; siteIds: string[] }
+export interface Filters {
+  start: string
+  end: string
+  siteIds: string[]
+  /**
+   * 观察截止时刻。省略时取数据集快照时间。
+   * 时间回放传入某一刻，会话与任务会按该时刻「当时的样子」重算：
+   * 尚未提交的任务不出现，尚未完成的任务显示为生成中，
+   * 尚未发生的审核与展示结果一律不可见。
+   */
+  asOf?: string
+}
 export interface DatasetIndex { sessions: Map<string, Session>; tasks: Map<string, GenerationTask>; tasksBySession: Map<string, GenerationTask[]>; scansByTask: Map<string, ScanEvent[]>; sharesByTask: Map<string, ShareEvent[]> }
 export interface Cohort { dataset: Dataset; index: DatasetIndex; sessions: Session[]; tasks: GenerationTask[]; scans: ScanEvent[]; shares: ShareEvent[]; asOf: string }
 export interface OverviewMetrics { participants: number; sessions: number; success: number; ended: number; queued: number; running: number; successRate: number | null; claimable: number; scanned: number; shared: number; scanRate: number | null; shareRate: number | null; averageSeconds: number | null; p90Seconds: number | null; durations: number[]; approved: number; rejected: number; pending: number; rejectionRate: number | null; overduePending: number }

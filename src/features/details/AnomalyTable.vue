@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { Anomaly, Severity } from '../../domain/types'
 import StatusBadge from '../../components/StatusBadge.vue'
+import { exportCsv } from '../../composables/useExport'
 
 const props = defineProps<{ anomalies: readonly Anomaly[]; siteNames: ReadonlyMap<string, string>; deviceNames: ReadonlyMap<string, string>; limit?: number }>()
 const emit = defineEmits<{ open: [anomaly: Anomaly] }>()
@@ -50,6 +51,22 @@ function observedState(a: Anomaly): { label: string; tone: 'success' | 'warning'
     : { label: '历史日', tone: 'neutral' }
 }
 
+/** 导出当前筛选后的异常清单，含规则与证据字段，便于离线核对。 */
+function exportRows() {
+  exportCsv(
+    '异常清单.csv',
+    ['异常ID', '类型', '标题', '严重程度', '点位', '设备', '业务日期', '观察状态', '触发规则', '实际值', '阈值', '分子', '分母', '样本量', '建议排查'],
+    filtered.value.map(a => [
+      a.id, TYPE_LABEL[a.type], a.title, LABEL[a.severity],
+      props.siteNames.get(a.siteId) ?? a.siteId,
+      a.deviceId ? (props.deviceNames.get(a.deviceId) ?? a.deviceId) : null,
+      a.bucketDate ?? a.offlineAt ?? null,
+      observedState(a).label,
+      a.rule, a.actual, a.threshold, a.numerator, a.denominator, a.sampleSize, a.suggestion,
+    ]),
+  )
+}
+
 const scope = (a: Anomaly) => {
   if (a.deviceId) return props.deviceNames.get(a.deviceId) ?? a.deviceId
   return props.siteNames.get(a.siteId) ?? a.siteId
@@ -63,6 +80,7 @@ const scope = (a: Anomaly) => {
               type="button" :class="{ active: severityFilter === f[0] }" @click="severityFilter = f[0]">
         {{ f[1] }}<span class="n">{{ counts[f[0]] }}</span>
       </button>
+      <button v-if="filtered.length" type="button" class="ghost export" @click="exportRows">导出 CSV</button>
     </div>
 
     <div v-if="shown.length === 0" class="empty">
@@ -96,7 +114,14 @@ const scope = (a: Anomaly) => {
 </template>
 
 <style scoped>
-.filters { display: flex; gap: 5px; margin-bottom: 12px; }
+.filters { display: flex; gap: 5px; margin-bottom: 12px; align-items: center; }
+.export { margin-left: auto; }
+.ghost {
+  border: 1px solid var(--border-light); background: var(--bg-subtle); color: var(--text-weak);
+  font-size: 11px; padding: 4px 10px; border-radius: 8px;
+  transition: all var(--dur-fast) var(--ease-soft);
+}
+.ghost:hover { color: var(--text-primary); border-color: var(--glass-border-strong); }
 .filters button {
   border: 1px solid var(--border-light); background: var(--bg-subtle); color: var(--text-weak);
   font-size: 11px; padding: 4px 10px; border-radius: 8px; display: inline-flex; gap: 5px; align-items: center;

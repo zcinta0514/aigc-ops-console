@@ -60,6 +60,15 @@ function openTab(tab: string, status?: string) {
   void router.push({ path: '/details', query })
 }
 
+/** 点趋势图的某一天即把全页筛选到该日；再点同一天则恢复默认范围。 */
+function focusDate(date: string) {
+  if (filters.value.start === date && filters.value.end === date) {
+    reset()
+    return
+  }
+  setRange(date, date)
+}
+
 function openSite(siteId: string) {
   void router.push({
     path: '/details',
@@ -116,7 +125,7 @@ function openAnomaly(a: Anomaly) {
     </p>
 
     <div class="grid">
-      <TrendChart class="span-2 enter" style="--stagger: 2" :series="daily" />
+      <TrendChart class="span-2 enter" style="--stagger: 2" :series="daily" @pick="focusDate" />
       <ConversionFunnel class="enter" style="--stagger: 3" :funnel="funnel" />
       <ModerationSummary class="enter" style="--stagger: 4" :metrics="metrics" @open="openTab('moderation', 'pending')" />
 

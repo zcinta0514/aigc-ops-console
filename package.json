@@ -17,6 +17,7 @@
     "build": "vite build",
     "build:single": "vite build --mode single && node scripts/copy-single.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "start:demo": "npm run build && npm run preview",
     "test:e2e": "npm run build && playwright test",
     "verify": "npm run data:validate && npm run data:verify && npm run lint && npm run typecheck && npm run test:unit && npm run build"
   },
