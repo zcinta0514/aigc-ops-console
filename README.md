@@ -6,7 +6,7 @@
 这些问题没有标准答案，但**答错了会让故障从你眼皮底下溜走**。这个仓库把答案写成了代码，
 并且用 72 条单元测试和 9 条端到端测试锁住。
 
-[![CI](https://github.com/zcinta0514/aigc-ops-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/zcinta0514/aigc-ops-dashboard/actions/workflows/ci.yml)
+[![CI](https://github.com/zcinta0514/aigc-ops-console/actions/workflows/ci.yml/badge.svg)](https://github.com/zcinta0514/aigc-ops-console/actions/workflows/ci.yml)
 ![Vue 3](https://img.shields.io/badge/Vue-3-42b883)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Tests](https://img.shields.io/badge/tests-72%20unit%20%2B%209%20e2e-brightgreen)
